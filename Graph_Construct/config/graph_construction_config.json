@@ -1,0 +1,68 @@
+{
+    "mongo": {
+        "host": "mongodb ip address",
+        "port": 27017,
+        "database": "mms"
+    },
+    "model": {
+        "clients": [
+            "http://ip_address:port/v1"
+        ],
+        "api_key": "-",
+        "model_name": "Qwen2.5-72B-Instruct-AWQ",
+        "max_tokens": 2000,
+        "temperature": 0.1,
+        "current_client_idx": 0
+    },
+    "processing": {
+        "max_workers": 8,
+        "max_segments": 5,
+        "max_num_frames": 72,
+        "control_max_frames": true,
+        "frames_per_group": 6,
+        "quest_eval_iterations": 3,
+        "f1_threshold": 0.75
+    },
+    "datasets": {
+        "summscreen3D": {
+            "collection": "hierarchical3D", 
+            "query": {"storyline": {"$exists": true}, "split": "test"},
+            "article_field": "storyline"
+        },
+        "soccernet": {
+            "collection": "soccernet",
+            "query": {"storyline": {"$exists": true}, "split": "test"},
+            "article_field": "storyline"
+        },
+        "tib": {
+            "collection": "tib",
+            "query": {"transcript": {"$exists": true}, "split": "test"},
+            "article_field": "transcript"
+        },
+        "bliss": {
+            "collection": "bliss",
+            "query": {"storyline": {"$exists": true}, "split": "test"},
+            "article_field": "storyline"
+        },
+        "mmavs": {
+            "collection": "mmavs",
+            "query": {"storyline": {"$exists": true}, "split": "test"},
+            "article_field": "storyline"
+        },
+        "views": {
+            "collection": "views",
+            "query": {"storyline": {"$exists": true}, "split": "test"},
+            "article_field": "storyline"
+        },
+        "vista": {
+            "collection": "views",
+            "query": {"storyline": {"$exists": true}, "split": "test"},
+            "article_field": "storyline"
+        },
+        "xmsmo": {
+            "collection": "views",
+            "query": {"storyline": {"$exists": true}, "split": "test"},
+            "article_field": "storyline"
+        }
+    }
+}
