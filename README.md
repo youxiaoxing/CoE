@@ -9,8 +9,7 @@ This repository contains the official implementation of "Cut to the Chase: Train
 
 ## 🌟 1. Overview
 
-CoE tackles long-video multimodal summarization by explicitly structuring the generation process around **events** and **cross-modal grounding**.  
-Instead of end-to-end finetuning, CoE is **training-free** and focuses on **robust reasoning + evidence alignment**.
+CoE tackles long-video multimodal summarization by explicitly structuring the generation process around **events** and **cross-modal grounding**. Instead of end-to-end finetuning, CoE is **training-free** and focuses on **robust reasoning + evidence alignment**.
 
 
 ✅ **Key properties**
@@ -41,24 +40,26 @@ Instead of end-to-end finetuning, CoE is **training-free** and focuses on **robu
 * **Semantic / Consensus**: METEOR, CIDEr, BERTScore
 * **Factual / Entity**: entity-level F1 (grounding-oriented)
 
+CoE achieves top-tier performance across most dataset-metric pairs, and shows particularly strong gains on CIDEr and ROUGE for long-video MMS.
+
 ---
 
 ## 🗂️ 4. Data
 
-### 🧾 4.1 The 8 Datasets
+### 🧾 4.1 Datasets
 
 Below are the eight benchmarks used in the paper (covering **news / academic / sports / entertainment / livestream**).
 
 | Dataset                 | Domain             | Typical Input                | Output                           |
 | ----------------------- | ------------------ | ---------------------------- | -------------------------------- |
-| **VIEWS**               | News               | video + transcript/article   | news-style summary               |
-| **MM-AVS**              | News               | video + multimodal context   | concise summary                  |
-| **XMSMO-News**          | News               | long video + text            | ultra-short TL;DW                |
-| **TIB**                 | Lecture            | lecture video + transcript   | lecture summary                  |
-| **VISTA**               | Academic           | talk video + transcript      | abstract-style summary           |
-| **BLiSS**               | Livestream         | long livestream + transcript | process-oriented summary         |
-| **SoccerNet-Caption** | Sports             | match video                  | event-centric commentary/summary |
-| **SummScreen3D** | TV / Entertainment | episode + dialogue           | story-level recap                |
+| **VIEWS**               | News               | video + storyline   | news-style summary               |
+| **MM-AVS**              | News               | video + news article   | concise summary                  |
+| **XMSMO-News**          | News               | long video + text            | news title                |
+| **TIB**                 | Lecture            | lecture video + transcript   | summary                  |
+| **VISTA**               | Academic           | talk video + transcript      | paper abstract           |
+| **BLiSS**               | Livestream         | long livestream + transcript | extracted summary         |
+| **SoccerNet-Caption** | Sports             | video + comments               | event-centric summary |
+| **SummScreen3D** | Entertainment | episode + dialogue           | story-level recap                |
 
 
 
@@ -73,9 +74,8 @@ This enables CoE to **query different datasets in a unified way** and simplifies
 
 | Field        | Type   | Description                                      |
 | ------------ | ------ | ------------------------------------------------ |
-| `dataset`    | string | dataset name (e.g., `VIEWS`)                     |
 | `video_id`   | string | unique sample id                                 |
-| `video_path` | string | path to video (or feature path)                  |
+| `video_path` | string | path to video                                    |
 | `text`       | string | unified text input (transcript/article/dialogue) |
 | `reference`  | string | ground-truth summary (if available)              |
 | `meta`       | object | optional metadata (title, timestamps, url, etc.) |
@@ -94,41 +94,33 @@ This enables CoE to **query different datasets in a unified way** and simplifies
 
 ---
 
+
 ## 🧰 5. Installation
 
-### ✅ 5.1 Environment
+### ✅ 5.1 Requirements
 
-* Python **3.10+**
-* MongoDB (local or remote)
-* (Optional) CUDA + PyTorch for acceleration
+- Python **3.12+**
+- MongoDB (local or remote instance)
+
+---
 
 ### 📦 5.2 Setup
+
+Clone the repository and create a clean environment:
 
 ```bash
 git clone https://github.com/youxiaoxing/CoE.git
 cd CoE
 
-conda create -n coe python=3.10 -y
+conda create -n coe python=3.12 -y
 conda activate coe
+````
 
-pip install -U pip
-pip install numpy tqdm pillow pymongo requests
-```
-
-### 🧠 5.3 Optional dependencies (recommended)
+Install all dependencies via `requirements.txt`:
 
 ```bash
-# if you evaluate BERTScore
-pip install bert-score
-
-# if you use torch-based backbones
-pip install torch
-
-# if you use OpenAI-style chat completion client (or compatible)
-pip install openai
+pip install -r requirements.txt
 ```
-
-
 
 ---
 
@@ -142,27 +134,42 @@ Create `config.json`:
 
 ```json
 {
-  "mongo": {
-    "uri": "mongodb://localhost:27017",
-    "db": "coe"
-  },
-  "model": {
-    "base_url": "YOUR_API_BASE",
-    "api_key": "YOUR_API_KEY",
-    "model_name": "YOUR_MODEL_NAME"
-  },
-  "processing": {
-    "max_workers": 8,
-    "max_segments": 12,
-    "quest_eval_iterations": 2
-  },
-  "datasets": {
-    "VIEWS": {
-      "collection": "views",
-      "save_file": "outputs/views.jsonl",
-      "prompt_type": "news"
+    "hf_endpoint": "https://hf-mirror.com",
+    "mongo": {
+      "host": "Mongodb_IP_Address",
+      "port": 27017,
+      "database": "mms"
+    },
+    "model": {
+      "clients": [
+        "http://IP_Address:Port/v1"
+      ],
+      "api_key": "-",
+      "model_name": "Qwen2.5-VL-7B-Instruct",
+      "max_tokens": 500,
+      "temperature": 0.1,
+      "current_client_idx": 0
+    },
+    "datasets": {
+      "vista": {
+        "collection": "vista",
+        "query": {"graph": {"$exists": true}, "split": "test"},
+        "video_path_template": "video_dataset/VISTA/{video_path}",
+        "save_file": "./result/vista.jsonl",
+        "json_save_file": "./result/vista.json",
+        "prompt_type": "vista",
+        "article_field": "storyline",
+        "summary_key": "summary"
+      }
     }
-  }
+    "prompts": {
+      "vista": {
+        "subevent_match": "Please analyze the...",
+        "summary_generation": "Based on the overall event...",
+        "old_translate_style": "Based on the provided references...",
+        "translate_style": "Based on the provided reference examples..."
+      }
+    }
 }
 ```
 
@@ -172,49 +179,74 @@ Create `config.json`:
 python CoE/CoE.py --config config.json --dataset VIEWS
 ```
 
-📌 Output will be written to the `save_file` specified in config (e.g., `outputs/views.jsonl`).
 
 ---
+
 
 ## ✅ 7. Evaluation
 
-We provide two evaluation entrypoints (typical setup):
+We provide two evaluation scripts corresponding to **different metric groups**:
 
-### 🧪 7.1 Semantic scoring service (optional)
+- 📊 `compute_score.py` → standard summarization metrics  
+- 🔎 `compute_score_entity.py` → entity-level factual evaluation  
 
-If you run BERTScore in a service mode:
-
-```bash
-python Evaluation/bert_score_server.py --host 0.0.0.0 --port 8000
-```
-
-📌 Measures: **semantic similarity** between generated summaries and references (BERTScore).
+Both scripts take a **folder of JSON result files** as input.
 
 ---
 
-### 📏 7.2 Summarization metric evaluation
+### 📏 7.1 Standard Summarization Metrics
 
-Run the evaluator on predictions vs references:
+Run:
 
 ```bash
-python Evaluation/evaluate.py \
-  --pred outputs/views.jsonl \
-  --ref  data/views_reference.jsonl \
-  --metrics bleu rouge cider meteor bertscore entity_f1
+python Evaluation/compute_score.py \
+  --input_path outputs/
+````
+
+Optional (enable BERTScore):
+
+```bash
+python Evaluation/compute_score.py \
+  --input_path outputs/ \
+  --use_bert_score
 ```
 
-📌 Measures:
+📌 **Input format**
 
-* **BLEU-4 / ROUGE**: lexical overlap
-* **CIDEr / METEOR**: consensus + content quality
-* **BERTScore**: semantic similarity
-* **entity_f1**: grounding-related factuality proxy
+* A folder containing `.json` files
+* Each file is a list of samples with:
+
+```json
+{
+  "caption": "generated summary",
+  "ref_caption": "ground-truth summary"
+}
+```
+
+📌 **Computed metrics**
+
+* **BLEU-1/2/3/4** → n-gram precision
+* **ROUGE** → overlap-based recall
+* **ROUGE-LSum** → long-sequence structure similarity
+* **CIDEr** → consensus-based similarity
+* **METEOR** → semantic + lexical alignment
+* **BERTScore (optional)** → contextual semantic similarity
 
 ---
+
+### 🔎 7.2 Entity-level Evaluation
+
+Run:
+
+```bash
+python Evaluation/compute_score_entity.py \
+  --input_path outputs/
+```
+
+---
+
 
 ## 📬 8. Contact
 
 For questions, issues, or collaborations:
-
-* 👤 Xiaoxing You — `youxiaoxing@hdu.edu.cn`
 * 🧑‍💻 Open an issue: **GitHub Issues** tab
