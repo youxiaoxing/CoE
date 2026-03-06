@@ -250,3 +250,16 @@ python Evaluation/compute_score_entity.py \
 
 For questions, issues, or collaborations:
 * 🧑‍💻 Open an issue: **GitHub Issues** tab
+
+---
+
+## 📚  9. Reference
+
+```
+@inproceedings{you2026CoE,
+  title={Cut to the Chase: Training-free Multimodal Summarization via Chain-of-Events},
+  author={Xiaoxing You and Qiang Huang and Lingyu Li and Xiaojun Chang and Jun Yu},
+  booktitle={Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR)},
+  year={2026}
+}
+```
