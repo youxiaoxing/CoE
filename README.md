@@ -1,112 +1,63 @@
 # CoE: Training-free Multimodal Summarization via Chain-of-Events
 
-This repository contains the official implementation of "Cut to the Chase: Training-free Multimodal Summarization via Chain-of-Events" (Accepted as CVPR 2026).
+Official implementation of **"Cut to the Chase: Training-free Multimodal Summarization via Chain-of-Events"** (CVPR 2026).
 
-![CoE](./figures/framework.png)
-
-
----
-
-## 🌟 1. Overview
-
-CoE tackles long-video multimodal summarization by explicitly structuring the generation process around **events** and **cross-modal grounding**. Instead of end-to-end finetuning, CoE is **training-free** and focuses on **robust reasoning + evidence alignment**.
-
-
-✅ **Key properties**
-
-* Training-free & plug-and-play across datasets/domains
-* Event-centric structure improves coherence and coverage
-* Cross-modal grounding reduces hallucination and strengthens faithfulness
+![CoE framework](./figures/framework.png)
 
 ---
 
-## 🧠 2. What CoE Contributes
+## TL;DR
 
-🌟 **CoE contributes an event-driven, training-free MMS framework** that you can apply to multiple datasets with unified data access.
+CoE is a **training-free** multimodal summarization framework for long videos. It structures generation around:
 
-**Core contributions**
-
-* 🧩 **Chain-of-Events reasoning**: organizes summaries around event progression rather than isolated captions.
-* 🔎 **Cross-modal evidence grounding**: aligns textual claims to video evidence for improved factuality.
-* 🧠 **Reason-then-write**: decouples content reasoning from style realization for better generalization.
+- **Chain-of-Events reasoning** (event progression over isolated clips)
+- **Cross-modal grounding** (summary claims linked to visual/text evidence)
+- **Reason-then-write generation** (content planning before style finalization)
 
 ---
 
-## 📊 3. Performance Highlights
+## Repository Structure
 
-📈 CoE is evaluated on **8 MMS datasets** using widely adopted metrics:
-
-* **Lexical**: BLEU-4, ROUGE
-* **Semantic / Consensus**: METEOR, CIDEr, BERTScore
-* **Factual / Entity**: entity-level F1 (grounding-oriented)
-
-CoE achieves top-tier performance across most dataset-metric pairs, and shows particularly strong gains on CIDEr and ROUGE for long-video MMS.
-
----
-
-## 🗂️ 4. Data
-
-### 🧾 4.1 Datasets
-
-Below are the eight benchmarks used in the paper (covering **news / academic / sports / entertainment / livestream**).
-
-| Dataset                 | Domain             | Typical Input                | Output                           |
-| ----------------------- | ------------------ | ---------------------------- | -------------------------------- |
-| **VIEWS**               | News               | video + storyline   | news-style summary               |
-| **MM-AVS**              | News               | video + news article   | concise summary                  |
-| **XMSMO-News**          | News               | long video + text            | news title                |
-| **TIB**                 | Lecture            | lecture video + transcript   | summary                  |
-| **VISTA**               | Academic           | talk video + transcript      | paper abstract           |
-| **BLiSS**               | Livestream         | long livestream + transcript | extracted summary         |
-| **SoccerNet-Caption** | Sports             | video + comments               | event-centric summary |
-| **SummScreen3D** | Entertainment | episode + dialogue           | story-level recap                |
-
-
-
----
-
-### 🗄️ 4.2 Unified MongoDB Storage
-
-To make dataset handling clean and scalable, we normalize the **textual side** across datasets and store all examples in **MongoDB** with a consistent schema.
-This enables CoE to **query different datasets in a unified way** and simplifies evaluation.
-
-✅ Recommended MongoDB schema
-
-| Field        | Type   | Description                                      |
-| ------------ | ------ | ------------------------------------------------ |
-| `video_id`   | string | unique sample id                                 |
-| `video_path` | string | path to video                                    |
-| `text`       | string | unified text input (transcript/article/dialogue) |
-| `reference`  | string | ground-truth summary (if available)              |
-| `meta`       | object | optional metadata (title, timestamps, url, etc.) |
-
-📌 Minimal example document
-
-```json
-{
-  "video_id": "000123",
-  "video_path": "/data/views/videos/000123.mp4",
-  "text": "Full transcript or article text here...",
-  "reference": "Ground-truth summary here...",
-  "meta": {"title": "News title", "date": "2025-01-01"}
-}
+```text
+CoE/
+├── CoE/
+│   ├── CoE.py                     # Main inference pipeline
+│   ├── EventGraph.py              # Graph data structure helpers
+│   ├── Jsonl_to_Json.py           # Convert raw jsonl outputs to eval-ready json
+│   └── config/
+│       └── Qwen_7b_config.json    # Example end-to-end config
+├── Graph_Construct/
+│   ├── graph_construction.py      # Event graph extraction pipeline
+│   └── config/
+│       └── graph_construction_config.json
+├── Evaluation/
+│   ├── compute_score.py           # BLEU/ROUGE/CIDEr/METEOR/BERTScore
+│   └── compute_score_entity.py    # Entity-level factual evaluation
+├── figures/
+│   └── framework.png
+└── requirements.txt
 ```
 
 ---
 
+## Features
 
-## 🧰 5. Installation
-
-### ✅ 5.1 Requirements
-
-- Python **3.12+**
-- MongoDB (local or remote instance)
+- ✅ **Training-free** pipeline (no fine-tuning required)
+- ✅ Unified dataset access via **MongoDB**
+- ✅ Multi-dataset config support in one codebase
+- ✅ Event graph construction + inference + evaluation scripts
 
 ---
 
-### 📦 5.2 Setup
+## 1) Installation
 
-Clone the repository and create a clean environment:
+### Requirements
+
+- Python **3.12+**
+- MongoDB (local or remote)
+- OpenAI-compatible inference endpoint (e.g., vLLM API)
+
+### Environment Setup
 
 ```bash
 git clone https://github.com/youxiaoxing/CoE.git
@@ -114,139 +65,225 @@ cd CoE
 
 conda create -n coe python=3.12 -y
 conda activate coe
-````
-
-Install all dependencies via `requirements.txt`:
-
-```bash
 pip install -r requirements.txt
 ```
 
+> `requirements.txt` is currently an environment-export style file. If your environment differs, install missing packages on demand based on script imports.
+
 ---
 
-## 🚀 6. Inference
+## 2) Data Format (MongoDB)
 
-CoE inference is driven by **`CoE/CoE.py`**.
+CoE expects per-sample documents in a unified schema:
 
-### 🧾 6.1 Prepare a config file (example)
+| Field        | Type   | Description                                      |
+| ------------ | ------ | ------------------------------------------------ |
+| `video_id`   | string | Unique sample id                                 |
+| `video_path` | string | Relative or absolute video path                  |
+| `text`       | string | Unified text input (transcript/article/dialogue) |
+| `reference`  | string | Ground-truth summary (if available)              |
+| `meta`       | object | Optional metadata                                |
 
-Create `config.json`:
+Example:
 
 ```json
 {
-    "hf_endpoint": "https://hf-mirror.com",
-    "mongo": {
-      "host": "Mongodb_IP_Address",
-      "port": 27017,
-      "database": "mms"
-    },
-    "model": {
-      "clients": [
-        "http://IP_Address:Port/v1"
-      ],
-      "api_key": "-",
-      "model_name": "Qwen2.5-VL-7B-Instruct",
-      "max_tokens": 500,
-      "temperature": 0.1,
-      "current_client_idx": 0
-    },
-    "datasets": {
-      "vista": {
-        "collection": "vista",
-        "query": {"graph": {"$exists": true}, "split": "test"},
-        "video_path_template": "video_dataset/VISTA/{video_path}",
-        "save_file": "./result/vista.jsonl",
-        "json_save_file": "./result/vista.json",
-        "prompt_type": "vista",
-        "article_field": "storyline",
-        "summary_key": "summary"
-      }
-    }
-    "prompts": {
-      "vista": {
-        "subevent_match": "Please analyze the...",
-        "summary_generation": "Based on the overall event...",
-        "old_translate_style": "Based on the provided references...",
-        "translate_style": "Based on the provided reference examples..."
-      }
-    }
+  "video_id": "000123",
+  "video_path": "/data/views/videos/000123.mp4",
+  "text": "Full transcript or article text here...",
+  "reference": "Ground-truth summary here...",
+  "meta": {
+    "title": "News title",
+    "date": "2025-01-01"
+  }
 }
 ```
 
-### ▶️ 6.2 Run inference
-
-```bash
-python CoE/CoE.py --config config.json --dataset VIEWS
-```
-
-
 ---
 
+## 3) Configure CoE
 
-## ✅ 7. Evaluation
+Use `CoE/config/Qwen_7b_config.json` as a template.
 
-We provide two evaluation scripts corresponding to **different metric groups**:
-
-- 📊 `compute_score.py` → standard summarization metrics  
-- 🔎 `compute_score_entity.py` → entity-level factual evaluation  
-
-Both scripts take a **folder of JSON result files** as input.
-
----
-
-### 📏 7.1 Standard Summarization Metrics
-
-Run:
-
-```bash
-python Evaluation/compute_score.py \
-  --input_path outputs/
-````
-
-Optional (enable BERTScore):
-
-```bash
-python Evaluation/compute_score.py \
-  --input_path outputs/ \
-  --use_bert_score
-```
-
-📌 **Input format**
-
-* A folder containing `.json` files
-* Each file is a list of samples with:
+### Minimal config example
 
 ```json
 {
-  "caption": "generated summary",
-  "ref_caption": "ground-truth summary"
+  "hf_endpoint": "https://hf-mirror.com",
+  "mongo": {
+    "host": "Mongodb_IP_Address",
+    "port": 27017,
+    "database": "mms"
+  },
+  "model": {
+    "clients": [
+      "http://IP_Address:Port/v1"
+    ],
+    "api_key": "-",
+    "model_name": "Qwen2.5-VL-7B-Instruct",
+    "max_tokens": 500,
+    "temperature": 0.1,
+    "current_client_idx": 0
+  },
+  "processing": {
+    "max_workers": 4,
+    "max_segments": 5,
+    "max_num_frames": 72,
+    "control_max_frames": true,
+    "frames_per_group": 6,
+    "quest_eval_iterations": 3,
+    "f1_threshold": 0.75
+  },
+  "datasets": {
+    "views": {
+      "collection": "views",
+      "query": {
+        "graph": {
+          "$exists": true
+        },
+        "split": "test"
+      },
+      "video_path_template": "video_dataset/views_video_data/{split}/{video_id}.mp4",
+      "save_file": "./result/views.jsonl",
+      "json_save_file": "./result/views.json",
+      "prompt_type": "views",
+      "article_field": "storyline",
+      "summary_key": "summary"
+    }
+  },
+  "prompts": {
+    "views": {
+      "subevent_match": "...",
+      "entity_match": "...",
+      "summary_generation": "...",
+      "translate_style": "..."
+    }
+  }
 }
 ```
 
-📌 **Computed metrics**
+---
 
-* **BLEU-1/2/3/4** → n-gram precision
-* **ROUGE** → overlap-based recall
-* **ROUGE-LSum** → long-sequence structure similarity
-* **CIDEr** → consensus-based similarity
-* **METEOR** → semantic + lexical alignment
-* **BERTScore (optional)** → contextual semantic similarity
+## 4) Build Event Graphs (Optional but Recommended)
+
+Before inference, generate `graph` fields in MongoDB:
+
+```bash
+python Graph_Construct/graph_construction.py \
+  --config Graph_Construct/config/graph_construction_config.json \
+  --dataset views
+```
+
+If `--dataset` is omitted, all configured datasets are processed.
 
 ---
 
-### 🔎 7.2 Entity-level Evaluation
-
-Run:
+## 5) Run Inference
 
 ```bash
-python Evaluation/compute_score_entity.py \
-  --input_path outputs/
+python CoE/CoE.py --config CoE/config/Qwen_7b_config.json --dataset views
+```
+
+- Output is appended to `save_file` (JSONL), e.g. `./result/views.jsonl`.
+- Each line stores `_id` and generated `response`.
+
+---
+
+## 6) Convert JSONL Output to Evaluation JSON
+
+```bash
+python CoE/Jsonl_to_Json.py \
+  --config CoE/config/Qwen_7b_config.json \
+  --dataset views
+```
+
+This creates eval-ready JSON with fields:
+
+```json
+{
+  "id": "...",
+  "ref_caption": "...",
+  "caption": "..."
+}
 ```
 
 ---
 
+## 7) Evaluation
 
-## 📬 8. Contact
+### 7.1 Standard summarization metrics
 
-For questions, issues, or collaborations:
-* 🧑‍💻 Open an issue: **GitHub Issues** tab
+```bash
+python Evaluation/compute_score.py --input_path result/
+```
+
+With BERTScore:
+
+```bash
+python Evaluation/compute_score.py --input_path result/ --use_bert_score
+```
+
+Reported metrics:
+
+- BLEU-1/2/3/4
+- ROUGE
+- ROUGE-LSum
+- CIDEr
+- METEOR
+- BERTScore (optional)
+
+### 7.2 Entity-level factual evaluation
+
+```bash
+python Evaluation/compute_score_entity.py --input_path result/
+```
+
+Optional spaCy model override:
+
+```bash
+python Evaluation/compute_score_entity.py --input_path result/ --spacy_model en_core_web_lg
+```
+
+---
+
+## 8) Supported Datasets in Current Config
+
+The provided config includes entries for:
+
+- VIEWS
+- MM-AVS
+- XMSMO-News
+- TIB
+- VISTA
+- BLiSS
+- SoccerNet-Caption
+- SummScreen3D (configured as `hierarchical3D`)
+
+You can adapt path templates/queries to your local storage.
+
+---
+
+## 9) Troubleshooting
+
+- **`No graph found` during inference**
+  - Run graph construction first, or ensure each sample has `graph` in MongoDB.
+- **Video loading errors**
+  - Verify `video_path_template` resolves to existing files.
+- **Empty evaluation results**
+  - Ensure converted JSON contains both `caption` and `ref_caption`.
+- **spaCy model load failure**
+  - Install requested model, or switch to an installed model via `--spacy_model`.
+
+---
+
+## Citation
+
+If you use CoE in your work, please cite the paper (bibtex will be added here).
+
+---
+
+## Contact
+
+For questions, issues, and collaboration:
+
+- Open a GitHub issue in this repository.
